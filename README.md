@@ -17,6 +17,8 @@ The package also uses the following dependencies.
 |cloudpickle |  0.5.3|     BSD 3|
 |scikit-learn| 0.20.2|   New BSD|
 | matplotlib |  1.5.1|Matplotlib|
+| rpy2       |  2.8.2|    GPLv2+|
+| pathlib    |  1.0.1|       MIT|
 
 
 They can be installed through the following sentence:
@@ -44,4 +46,4 @@ python2.7 setup_etc.py build_ext --inplace
 File "example_learn_et.py" provides a demo that shows how to learn a bounded treewidth Baysian network (Chapter 3).
 File "example_tsem.py" provides a demo that shows how to use the code to learn Bayesian networks in the presence of missing values (Chapter 4). 
 File "example_mbcs.py" shows examples of how to learn an MBC in a generative and discriminative way (Chapters 5 and 6).
-File "epilepsy.py" contains the code used to compare an MBC with nomograms for predicting Engel outcome 1, 2 and 5 years after surgery (Chapter 7).
+File "example_epilepsy.py" shows an example of how to train an MBC using the aproach used in the paper "Patient Specific Prediction of Temporal Lobe Epilepsy Surgical Outcomes".

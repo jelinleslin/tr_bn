@@ -48,6 +48,7 @@ cdef extern from "variable_elimination.h":
         void set_evidence(const vector[int] variables, const vector[int] values) nogil
         void retract_evidence() nogil
         void mpe_data(int* data_complete, const int* data_missing, int ncols, int nrows, vector[int] rows, vector[double] &prob_mpe) nogil
+        void sample_data(int* data_complete, const int* data_missing, int ncols, int nrows, vector[int] rows, vector[double] &prob_mpe, int random_state) nogil
         void mpe_data_oneproc(int* data_complete, const int* data_missing, int ncols, int nrows, vector[int] rows, vector[double] &prob_mpe) nogil
         vector[double] se_data(int* data_missing, int ncols, int nrows, vector[int] rows, vector[int] weights, vector[int] cluster) nogil
         vector[double] se_data_parallel(int* data_missing, int ncols, int nrows, vector[int] rows, vector[int] weights, vector[int] cluster)

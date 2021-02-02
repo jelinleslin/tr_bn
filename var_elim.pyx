@@ -67,6 +67,7 @@ cdef extern from "variable_elimination.h":
         void set_evidence(const vector[int] variables, const vector[int] values) nogil
         void retract_evidence() nogil
         void mpe_data(int* data_complete, const int* data_missing, int ncols, int nrows, vector[int] rows, vector[double] &prob_mpe) nogil
+        void sample_data(int* data_complete, const int* data_missing, int ncols, int nrows, vector[int] rows, vector[double] &prob_mpe, int random_state) nogil
         void mpe_data_oneproc(int* data_complete, const int* data_missing, int ncols, int nrows, vector[int] rows, vector[double] &prob_mpe) nogil
         vector[double] se_data(int* data_missing, int ncols, int nrows, vector[int] rows, vector[int] weights, vector[int] cluster) nogil
         vector[double] se_data_parallel(int* data_missing, int ncols, int nrows, vector[int] rows, vector[int] weights, vector[int] cluster)
@@ -314,7 +315,23 @@ cdef class PyFactorTree:
                  l_prob.append(deref(it_prob))
                  inc(it_prob)
         return l_prob
-        
+
+    def sample_data(self, datat data_complete, datat data_missing, list rows, return_prob = False, int random_state = 1):
+        cdef vector[int] rows_v
+        cdef vector[double] mpe_prob
+        cdef vector[double].iterator it_prob
+        cdef list l_prob = []
+
+        for r in rows:
+            rows_v.push_back(r)
+        self.c_factor_tree.sample_data(data_complete.dat_c, data_missing.dat_c, data_complete.ncols, data_complete.nrows, rows_v, mpe_prob, random_state)
+        if return_prob:
+             it_prob = mpe_prob.begin()
+             while it_prob != mpe_prob.end():
+                 l_prob.append(deref(it_prob))
+                 inc(it_prob)
+        return l_prob
+
     def se_data(self, datat data_missing, list rows, list weights, list cluster):
         cdef vector[int] rows_v, weights_v
         cdef vector[int] cluster_v

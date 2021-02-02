@@ -513,6 +513,7 @@ std::shared_ptr<Factor> prod_factor(const std::vector<std::shared_ptr<Factor>> f
 
 
 
+
 /*Maximizes factor f1 over variable xi*/
 std::shared_ptr<Factor> max_factor(const Factor &f1, int xi) {
   int nconf, i, pos_f_max, value_index;
@@ -1944,3 +1945,172 @@ std::vector<double> pseudo_cll_score(const Factor_Tree &ft, int change_type,int 
         
 }
 
+
+
+
+/*sample factor f1 over variable xi*/
+std::shared_ptr<Factor> sample_factor(const Factor &f1, int xi) {
+  int nconf, i, pos_f_sample, value_index;
+  std::vector<int> values, new_vars;
+  std::shared_ptr<Factor> f_sample;
+  float random_value;
+
+  // Create new factor without xi, and initialize to 0
+  new_vars = f1.variables;
+  
+  auto var_iterator=std::find(new_vars.begin(), new_vars.end(), xi);
+  int index = std::distance(new_vars.begin(), var_iterator);
+  new_vars.erase(var_iterator);
+  f_sample = std::make_shared<Factor>(new_vars,f1.num_categories);  
+  
+  // Sample 
+  nconf=nconf_in_factor(f1.variables, f1.num_categories);
+  for ( i = 0; i < nconf; i++ ){
+  	values = value_from_position(i, f1.variables, f1.num_categories, nconf);
+    value_index = values[index];
+    values.erase(values.begin() + index);
+    pos_f_sample = position_in_factor(values, f_sample->variables, f_sample->num_categories);
+    random_value = (static_cast<double>(std::rand()))/RAND_MAX;
+    // random_value = std::rand();
+    if (f1.prob[i]/(f_sample->prob[pos_f_sample]+f1.prob[i]) > random_value){
+      f_sample->mpe[pos_f_sample] = f1.mpe[i];
+      f_sample->mpe[pos_f_sample][xi] = value_index;
+    }
+    f_sample->prob[pos_f_sample] += f1.prob[i];
+  }
+
+  return f_sample;
+}
+
+/*Sample variable xi*/
+std::shared_ptr<Factor> sample_elim(const std::vector<std::shared_ptr<Factor>> factors, int xi){
+  std::shared_ptr<Factor> f_prod, f_sample;
+  
+  f_prod = prod_factor(factors);
+  if(std::find(f_prod->variables.begin(), f_prod->variables.end(), xi) != f_prod->variables.end()){
+      f_sample = sample_factor(*f_prod, xi);
+  } else{
+      f_sample = f_prod;
+  }
+          
+  return f_sample;
+}
+
+/*Computes the factor of xi from the factors of its children (MPE)*/
+void Factor_Tree::sample_compute(int xi){
+  std::shared_ptr<Factor_Node> node;
+  std::vector<std::shared_ptr<Factor>> children_factors;
+  std::shared_ptr<Factor> result_factor;
+  if (xi == -1){ // Root node
+    node = this->root;
+  } else if (xi >=0 && xi < this->inner_nodes.size()){
+    node = this->inner_nodes.at(xi);
+  } else{
+    throw std::runtime_error("Variable index out of bounds");
+  }
+
+  auto children = node->children;
+  for(auto factor_node = children.begin(); factor_node!=children.end(); ++factor_node)
+  {
+	children_factors.push_back((*factor_node).lock()->factor);
+  }
+
+  if (xi == -1){
+    result_factor = prod_factor(children_factors);
+    this->root->factor = result_factor;
+  } else{
+    result_factor = sample_elim(children_factors, xi);
+    this->inner_nodes.at(xi)->factor = result_factor;
+  }
+}
+
+
+void sample_compute_tree_aux(Factor_Tree &ft, int xi){
+  	std::shared_ptr<Factor_Node> node;
+    int xj;
+  	// Select node
+  	if (xi == -1){
+      node = ft.root;
+      
+      
+    } else if (xi >=0 && xi < ft.inner_nodes.size()){
+      node = ft.inner_nodes.at(xi);
+    } else{
+      throw std::runtime_error("Variable index out of bounds");
+    }
+  	
+  	// Compute in children nodes
+	for(auto child = node->children.begin(); child != node->children.end(); ++child)
+    {
+    	  xj = (*child).lock()->id;
+      if (xj >=0 && xj < ft.inner_nodes.size()){
+        sample_compute_tree_aux(ft,xj);
+      } else if (xj <0 || xj >= 2*ft.inner_nodes.size()){
+        throw std::runtime_error("Variable index out of bounds");
+      }
+    }
+    
+  	// Compute node xi
+  	ft.sample_compute(xi);
+}
+
+/*Computes the factors all nodes (sample)*/
+void Factor_Tree::sample_compute_tree(){
+   sample_compute_tree_aux(*this, -1);     
+}
+
+
+
+/*Complete data with the values returned by sample*/
+void Factor_Tree::sample_data(int* data_complete, const int* data_missing, int ncols, int nrows, std::vector<int> rows, std::vector<double> &prob_mpe, int random_state){
+    Factor_Tree ft = *this;
+    // Complete each row with missing values
+    std::vector<int> values;
+    std::vector<int> evidence;
+    std::vector<int> missing;
+    std::vector<int> mpe;
+    std::vector<double> mpe_prob_v(nrows, 0.0);
+    int HadCatch = 0;
+    std::srand(random_state);
+    //#pragma omp parallel for firstprivate(ft) private(values, evidence, missing, mpe) shared(HadCatch, mpe_prob_v)
+    for (auto it=0;it<rows.size();++it){
+        try{
+            int i = rows.at(it);
+            // Obtain the positions of the observed values  in the row 
+            for (auto j=0;j<ncols;++j){
+                if(data_missing[pos_datav(i, j, nrows)]==-1){
+                    missing.push_back(j);
+                } else{
+                    evidence.push_back(j);
+                    values.push_back(data_missing[pos_datav(i, j, nrows)]); 
+                }
+            }
+            // Compute the MPE of the missing values given the observed values
+            ft.set_evidence(evidence, values);
+            ft.sample_compute_tree();
+            mpe = ft.root->factor->mpe.at(0);
+            mpe_prob_v[i] = ft.root->factor->prob.at(0);
+            // Complete data_complete with the MPE
+            for (auto itm=missing.begin();itm!=missing.end();++itm){
+                if (mpe.at(*itm) == -1){
+//                    throw std::runtime_error( "MPE with 0 probability \n");
+                    std::cout << "MPE with 0 probability \n";
+                } else{
+                    data_complete[pos_datav(i, *itm, nrows)] = mpe.at(*itm);
+                }
+            }
+            //Remove evidence from f for next iteration
+            ft.retract_evidence();
+            //Initialize vectors
+            values.clear();
+            evidence.clear();
+            missing.clear();
+            mpe.clear();
+        } catch(std::bad_alloc){
+             HadCatch++;   
+        }
+    }
+    if (HadCatch) {throw std::bad_alloc();}
+    prob_mpe = mpe_prob_v;
+    
+}

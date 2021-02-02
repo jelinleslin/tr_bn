@@ -11,6 +11,104 @@ import random
 import numpy
 import copy
 from sklearn.model_selection import KFold, StratifiedKFold
+import rpy2.robjects as ro
+import rpy2
+from export import get_adjacency_matrix_from_et
+import data_type
+
+
+
+def multi_sample_dataset(fiti,df,custom_classes, random_state=1, repeats = 30):
+	"""
+	Complete data with samples multiple times acording to fiti
+
+	Parameters
+	----------
+	fiti: factor tree
+	df: pandas dataframe
+	custom_classes: classes
+	random_state: random state for the sample
+	repeats: number of repeated samples
+
+	Returns
+	-------
+	List of datasets
+	"""
+	# Get data types
+	datat = data_type.data(df,classes=custom_classes)
+	data_complete = data_type.data(df,classes=custom_classes)
+	nan_rows = get_nan_rows(df)
+	# Set random seed
+	numpy.random.seed(repeats)
+	seeds = numpy.random.randint(low=0,high=1000,size=repeats)
+	dfs_complete = []
+	# Impute data multiple times
+	for seed in seeds:
+		fiti.sample_data(data_complete, datat, nan_rows, random_state=seed)
+		df_complete = data_complete.to_DataFrame()
+		dfs_complete.append(df_complete)
+	return dfs_complete
+
+
+
+def export_dsc(et, fiti, custom_classes, path):
+
+    # Get adjacency matrix
+    adj = get_adjacency_matrix_from_et(et)
+
+    # Structure to bnlearn
+    nr,nc = adj.shape
+    adjr = ro.r.matrix(adj.transpose().flatten().tolist(), nrow=nr, ncol=nc)
+    ro.r.assign("adj", adjr)
+    ro.r('library(bnlearn)')
+    ro.r('names = paste0("V",0:50)')
+    ro.r('e = empty.graph(as.character(names))')
+    ro.r('amat <- data.matrix(adj)')
+    ro.r('dimnames(amat) <- list(names,names)')
+    ro.r('amat(e) = amat')
+
+    # TODO change names of variables and classes
+    vnames = ["V{}".format(xi) for xi in range(adj.shape[1])]
+    names_classes = custom_classes
+
+    # Create cpts
+    ro.r('dist = list()')
+    for vi in range(len(vnames)):
+        # Get cpt
+        factor = fiti.get_factor(len(vnames) + vi)
+        cpti = factor.get_prob()
+        variables = factor.get_variables()
+        ncat = factor.get_num_categories()
+        # Export CPT
+        ro.r.assign("cpti", cpti)
+        ro.r("cpti = unlist(cpti)")
+        ro.r.assign("variables", variables)
+        ro.r("variables = unlist(variables)")
+        ro.r.assign("ncat", ncat)
+        ro.r("ncat = unlist(ncat)")
+        ro.r('dim(cpti) = ncat')
+        ro.r('dn = list()')
+        for vj in variables:
+            v_name_j = vnames[vj]
+            classes = names_classes[vj]
+            ro.r.assign("v_name_j", v_name_j)
+            ro.r("v_name_j = unlist(v_name_j)")
+            ro.r.assign("classes", classes)   
+            ro.r("classes = unlist(classes)")
+            ro.r('dn[[v_name_j]] = classes')
+        ro.r('dimnames(cpti) = dn')
+        # Append cpt to list
+        v_name_i = vnames[vi]
+        ro.r.assign("v_name_i", v_name_i)
+        ro.r("v_name_i = unlist(v_name_i)")
+        ro.r('dist[[v_name_i]] = cpti')
+
+    # Assign custom fit
+    ro.r('bn = custom.fit(e, dist = dist)')
+    ro.r('write.net("{}", bn)'.format(path))
+
+
+
 
 # Stirlings function
 # Approximation of the gamma function for big numbers

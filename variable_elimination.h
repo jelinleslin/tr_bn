@@ -53,6 +53,8 @@ class Factor_Tree {
   	void learn_parameters(const int* data, int nrows, int ncols, double alpha);
   	/*Computes the factor of xi from the factors of its children (MPE)*/
   	void max_compute(int xi);
+  	/*Computes the factor of xi from the factors of its children (sample)*/
+  	void sample_compute(int xi);
   	/*Computes the factor of xi from the factors of its children (evidence propagation)*/
   	void sum_compute(int xi);
     /*Distributes evidence (Junction Tree)*/
@@ -63,6 +65,8 @@ class Factor_Tree {
     void prod_compute(int xi);
   	/*Computes the factors all nodes (MPE)*/
   	void max_compute_tree();
+  	/*Computes the factors all nodes (sample)*/
+  	void sample_compute_tree();
   	/*Computes the factors all nodes (evidence propagation)*/
   	void sum_compute_tree();
     /*Computes the joint PD of variables*/
@@ -75,6 +79,8 @@ class Factor_Tree {
     /*Completes data_complete */
     void mpe_data(int* data_complete, const int* data_missing, int ncols, int nrows, std::vector<int> rows, std::vector<double> &prob_mpe);
     void mpe_data_oneproc(int* data_complete, const int* data_missing, int ncols, int nrows, std::vector<int> rows, std::vector<double> &prob_mpe);
+    /*Completes data_complete with samples*/
+    void sample_data(int* data_complete, const int* data_missing, int ncols, int nrows, std::vector<int> rows, std::vector<double> &prob_mpe, int random_state);
     /*Get the sufficent statistics for cluster*/
     std::vector<double> se_data(int* data_missing, int ncols, int nrows, std::vector<int> rows, std::vector<int> weights, std::vector<int> cluster_int);
     /*Get the sufficent statistics for cluster (parallel)*/
@@ -117,6 +123,12 @@ std::shared_ptr<Factor> max_factor(const Factor &f1, int xi);
 
 /*Eliminates variable xi (MPE)*/
 std::shared_ptr<Factor> max_elim(const std::vector<std::shared_ptr<Factor>> factors, int xi);
+
+/*Maximizes factor f1 over variable xi*/
+std::shared_ptr<Factor> sample_factor(const Factor &f1, int xi);
+
+/*Eliminates variable xi (MPE)*/
+std::shared_ptr<Factor> sample_elim(const std::vector<std::shared_ptr<Factor>> factors, int xi);
 
 /*Eliminates variable xi (evidence propagation)*/
 std::shared_ptr<Factor> sum_elim(const std::vector<std::shared_ptr<Factor>> factors, int xi);
