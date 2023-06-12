@@ -11,7 +11,7 @@ import os
 
 # Load Nltcs dataframe
 d='nltcs'
-for tw_bound in range(1, 4, 2):
+for tw_bound in range(1, 10, 2):
   print(tw_bound)
   file_name = "data/{}_train_tw.csv".format(d)
   data = pandas.read_csv(file_name)
@@ -29,9 +29,7 @@ for tw_bound in range(1, 4, 2):
   print(adj_mat)
   a = np.array(adj_mat)
   mat = np.matrix(a)
-  with open('{}_{}_structure.csv'.format(d,tw_bound),'wb') as f:
-      for line in mat:
-          np.savetxt(f, line, fmt='%d')
+
           
 
 
