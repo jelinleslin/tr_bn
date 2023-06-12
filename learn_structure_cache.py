@@ -78,7 +78,7 @@ def hill_climbing_cache(data_frame, et0=None, u=5, metric='bic', tw_bound_type='
             if tw_bound_type=='b':
                 change_idx, et_new = search_first_tractable_structure(et, lop_o, op_names_o, tw_bound, forbidden_parents, constraint)
                 if change_idx == -1:
-#                    print 'exit'
+#                    print ('exit')
                     return et
             else:
                 change_idx = 0
@@ -111,9 +111,9 @@ def hill_climbing_cache(data_frame, et0=None, u=5, metric='bic', tw_bound_type='
             tb= time()
             if verbose:
                 if tw_bound_type=='b':
-                    print 'it: ',count_i, ', change: ', [best_op_names, xout, xin], ', tw: ', et.tw(), ', time: ', tc-ta, ', timetw: ', tb-tc, ', best_score_difs: ', best_score_difs
+                    print ('it: ',count_i, ', change: ', [best_op_names, xout, xin], ', tw: ', et.tw(), ', time: ', tc-ta, ', timetw: ', tb-tc, ', best_score_difs: ', best_score_difs)
                 else:
-                    print 'it: ',count_i, ', change: ', [best_op_names, xout, xin], ', time: ', tc-ta, ', timetw: ', tb-tc, ', best_score_difs: ', best_score_difs
+                    print ('it: ',count_i, ', change: ', [best_op_names, xout, xin], ', time: ', tc-ta, ', timetw: ', tb-tc, ', best_score_difs: ', best_score_difs)
         else:
             ok_to_proceed = False        
     return et
